@@ -22,6 +22,129 @@ import pandas as pd
 conn = sqlite3.connect('movies_and_ratings.db')
 ```
 
+## First Exercise
+
+```{python}
+# Find the titles of all movies directed by Steven Spielberg. 
+pd.read_sql_query('''
+select title 
+from Movie 
+where director = "Steven Spielberg"
+''', conn)
+```
+
+```{python}
+# Find all years that have a movie that received a rating of 4 or 5, and sort them in increasing order. 
+pd.read_sql_query('''
+select distinct year
+from Movie, Rating 
+where Movie.mID = Rating.mID and stars >= 4
+order by year 
+''', conn)
+```
+
+```{python}
+# Find the titles of all movies that have no ratings. 
+pd.read_sql_query('''
+select distinct title
+from Movie 
+join Rating
+where Movie.mID not in (select mID from Rating) 
+''', conn)
+```
+
+```{python}
+# Some reviewers didn't provide a date with their rating. Find the names of all reviewers who have ratings with a NULL
+# value for the date. 
+pd.read_sql_query('''
+select name from Reviewer, Rating 
+where Reviewer.rID = Rating.rID and ratingDate is null
+''', conn)
+
+```
+
+```{python}
+# Write a query to return the ratings data in a more readable format: reviewer name, movie title, stars, and ratingDate. 
+# Also, sort the data, first by reviewer name, then by movie title, and lastly by number of stars. 
+pd.read_sql_query('''
+select name, title, stars, ratingDate
+from Reviewer, (select * from Rating, Movie where Rating.mID = Movie.mID) as T where T.rID = Reviewer.rID
+order by name, title, stars
+''',conn)
+
+```
+
+```{python}
+# For all cases where the same reviewer rated the same movie twice and gave it a higher rating the second time, return 
+# the reviewer's name and the title of the movie. 
+
+pd.read_sql_query('''
+select name, title
+from Movie,
+(select *, (select count(*) from Rating where Rating.rID = R.rID and Rating.mID = R.mID 
+    and Rating.ratingDate > R.ratingDate and Rating.stars > R.stars) as counting
+    from Rating as R
+    where counting >= 1
+) as R2, 
+Reviewer
+where Movie.mID = R2.mID and Reviewer.rID = R2.rID
+''', conn)
+
+```
+
+```{python}
+# For each movie that has at least one rating, find the highest number of stars that movie received. Return the movie title
+# and number of stars. Sort by movie title. 
+
+pd.read_sql_query('''
+select Title, max(stars) as super_stars 
+from Rating,Movie 
+where Rating.mID = Movie.mID 
+group by Rating.mID 
+order by Title
+''', conn)
+
+```
+
+```{python}
+# For each movie, return the title and the 'rating spread', that is, the difference between highest and lowest ratings 
+# given to that movie. Sort by rating spread from highest to lowest, then by movie title.
+pd.read_sql_query('''
+select Title, max(stars) - min(stars) as spread
+from Rating, Movie
+where Rating.mID = Movie.mID
+group by Rating.mID
+order by spread desc, Title
+''', conn)
+```
+
+```{python}
+# Find the difference between the average rating of movies released before 1980 and the average rating of movies 
+# released after 1980. (Make sure to calculate the average rating for each movie, then the average of those averages for 
+# movies before 1980 and movies after. Don't just calculate the overall average rating before and after 1980.) 
+
+pd.read_sql_query('''
+select a2- a1
+from
+    (select avg(avg_year) as a1 from
+        (select year, 
+        avg(avg_stars) as avg_year 
+        from (select Rating.mID, avg(stars) as avg_stars, year from Rating, Movie where Rating.mID = Movie.mID group by Rating.mID) 
+        group by year) as before_1980
+    where year > 1980) as b1980,
+
+    (select avg(avg_year) as a2 from
+        (select year, 
+        avg(avg_stars) as avg_year 
+        from (select Rating.mID, avg(stars) as avg_stars, year from Rating, Movie where Rating.mID = Movie.mID group by Rating.mID) 
+        group by year) as after_1980
+    where year < 1980) as a1980
+''', conn)
+
+```
+
+## Second Exercise
+
 ```{python}
 pd.read_sql_query('''
 select * 
