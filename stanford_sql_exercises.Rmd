@@ -19,13 +19,13 @@ jupyter:
 ```{python}
 import sqlite3
 import pandas as pd
-conn = sqlite3.connect("colleges.db")
+conn = sqlite3.connect('movies_and_ratings.db')
 ```
 
 ```{python}
-pd.read_sql_query("select * from sqlite_master where type='table';", conn)
+pd.read_sql_query("select * from sqlite_master where type = 'table'", conn)
 ```
 
 ```{python}
-pd.read_sql_query('select * from College limit 5', conn)
+
 ```
