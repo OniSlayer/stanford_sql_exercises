@@ -23,9 +23,151 @@ conn = sqlite3.connect('movies_and_ratings.db')
 ```
 
 ```{python}
-pd.read_sql_query("select * from sqlite_master where type = 'table'", conn)
+pd.read_sql_query('''
+select * 
+from sqlite_master
+where type = 'table'
+''', conn)
 ```
 
 ```{python}
+# Find the names of all reviewers who rated Gone with the Wind. 
+pd.read_sql_query('''
+select distinct name
+from Movie, (select * from Rating, Reviewer where Rating.rID = Reviewer.rID) as T1
+where Movie.mID = T1.mID and Movie.mID = 101
+''', conn)
+```
+
+```{python}
+# For any rating where the reviewer is the same as the director of the movie, return the reviewer name, movie title, and number of stars. 
+pd.read_sql_query('''
+select director, title, stars 
+from Movie, (select * from Rating, Reviewer where Rating.rID = Reviewer.rID) as T1 
+where Movie.mID = T1.mID and name = director
+''', conn)
+```
+
+```{python}
+# Return all reviewer names and movie names together in a single list, alphabetized. (Sorting by the first name of the 
+# reviewer and first word in the title is fine; no need for special processing on last names or removing "The".) 
+
+pd.read_sql_query('''
+select  distinct name
+from Reviewer 
+union 
+select distinct title
+from Movie
+''', conn)
+
+```
+
+```{python}
+# Find the titles of all movies not reviewed by Chris Jackson. 
+pd.read_sql_query('''
+select title
+from Movie
+except 
+select title 
+from Rating, Movie 
+where  Rating.mID = Movie.mID and rID = 205
+''', conn)
+```
+
+```{python}
+# For all pairs of reviewers such that both reviewers gave a rating to the same movie, return the names of both reviewers. 
+# Eliminate duplicates, don't pair reviewers with themselves, and include each pair only once.
+# For each pair, return the names in the pair in alphabetical order. 
+
+pd.read_sql_query('''
+select distinct T1.name, T2.name from
+(select name, mID from Rating, Reviewer where Rating.rID = Reviewer.rID order by name) as T1,
+(select name, mID from Rating, Reviewer where Rating.rID = Reviewer.rID order by name) as T2
+where T1.mID = T2.mID and T1.name < T2.name
+''', conn)
+```
+
+```{python}
+# List movie titles and average ratings, from highest-rated to lowest-rated. If two or more movies have the same 
+# average rating, list them in alphabetical order. 
+
+pd.read_sql_query('''
+select title, avg(stars) from Movie,
+Rating where Movie.mID = Rating.mID
+group by Rating.mID
+order by avg(stars) desc, title
+''', conn)
+
+```
+
+```{python}
+# For each rating that is the lowest (fewest stars) currently in the database, return the reviewer name, movie title, and 
+# number of stars. 
+pd.read_sql_query('''
+select name, title, stars
+from Movie,
+(select mID, stars, name from Rating, Reviewer where Reviewer.rID = Rating.rID and stars = (select min(stars) from Rating)) as T
+where Movie.mID = T.mID
+''', conn)
+
+```
+
+```{python}
+# Find the names of all reviewers who have contributed three or more ratings.
+pd.read_sql_query('''
+select name
+from Rating, Reviewer
+where Rating.rID = Reviewer.rID
+group by Rating.rID
+having count(*) >= 3
+''', conn)
+```
+
+```{python}
+# Some directors directed more than one movie. For all such directors, return the titles of all movies directed by them, along with the director name.
+# Sort by director name, then movie title.
+pd.read_sql_query('''
+select title, Movie.director from Movie,
+ (select director from Movie group by director having count(*) >= 2) as T
+ where Movie.director = T.director
+''', conn)
+```
+
+```{python}
+# Find the movie(s) with the highest average rating. Return the movie title(s) and average rating. 
+pd.read_sql_query('''
+select title, avg(stars) from
+Movie,
+Rating
+where Movie.mID = Rating.mID
+group by Rating.mID
+having avg(stars) = (select max(avg_stars) as avg_stars from 
+(select mID, avg(stars) as avg_stars from Rating group by mID))
+''', conn)
+```
+
+```{python}
+# Find the movie(s) with the lowest average rating. Return the movie title(s) and average rating.
+pd.read_sql_query('''
+select title, avg(stars) from
+Movie,
+Rating
+where Movie.mID = Rating.mID
+group by Rating.mID
+having avg(stars) = (select min(avg_stars) as avg_stars from 
+(select mID, avg(stars) as avg_stars from Rating group by mID))
+''', conn)
+```
+
+```{python}
+# For each director, return the director's name together with the title(s) of the movie(s) they directed that received 
+# the highest rating among all of their movies, and the value of that rating.
+# Ignore movies whose director is NULL. 
+
+pd.read_sql_query('''
+select director, title, max(stars) from Movie, Rating  
+where Movie.mID = Rating.mID and director is not null
+group by director
+''', conn)
 
 ```
