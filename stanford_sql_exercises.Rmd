@@ -536,3 +536,61 @@ group by id1))
 
 ''', conn2)
 ```
+
+## SQL Movie-Rating Modification Exercises
+
+```{python}
+pd.read_sql_query('''
+select *
+from sqlite_master
+where type = 'table'
+''', conn)
+```
+
+```{python}
+# Add the reviewer Roger Ebert to your database, with an rID of 209. 
+
+pd.read_sql_query('''
+insert into Reviewer
+values (209, "Roger Ebert")
+''', conn)
+
+```
+
+```{python}
+# Insert 5-star ratings by James Cameron for all movies in the 
+# database. Leave the review date as NULL. 
+
+pd.read_sql_query('''
+insert into Rating
+select 207,mID, 5, null "James Cameron" from Movie
+''', conn)
+
+```
+
+```{python}
+# For all movies that have an average rating of 4 stars or higher, 
+# add 25 to the release year. (Update the existing tuples; 
+# don't insert new tuples.) 
+
+pd.read_sql_query('''
+update Movie
+set year = year +25
+where mID in (select mID from Rating group by mID having avg(stars) >= 4)
+''', conn)
+
+```
+
+```{python}
+# Remove all ratings where the movie's year is before 1970 or 
+# after 2000, and the rating is fewer than 4 stars. 
+
+pd.read_sql_query('''
+delete from Rating
+where mID in (
+select Movie.mID from Rating
+inner join Movie on Movie.mid= Rating.mid
+where (year < 1970 or year >2000) 
+) and stars < 4
+''', conn)
+```
