@@ -294,3 +294,59 @@ group by director
 ''', conn)
 
 ```
+
+## SQL Social-Network Query Exercises
+
+```{python}
+# read the new database for this exercise
+conn2 = sqlite3.connect('social.db')
+pd.read_sql_query('''
+select * from sqlite_master where type='table' 
+''', conn2)
+```
+
+```{python}
+pd.read_sql_query('''
+select *
+from
+(select H1.name as n1 , H1.grade as g1, H2.name as n2, H2.grade as g2 from Likes
+inner join Highschooler as H1 on H1.id = Likes.id1
+inner join Highschooler as H2 on H2.id = Likes.id2
+
+intersect
+
+select H2.name, H2.grade,H1.name, H1.grade from Likes
+inner join Highschooler as H1 on H1.id = Likes.id1
+inner join Highschooler as H2 on H2.id = Likes.id2) as T
+where n1 < n2
+''', conn2)
+```
+
+```{python}
+pd.read_sql_query('''
+
+select name1, g1, name2, g2, name, grade
+from Friend as Fi,
+(select id1 as fid1, h1.name as name1, h1.grade as g1, id2 as fid2, h2.name as name2, h2.grade as g2
+from Likes as L
+inner join Highschooler as H1 on H1.id = L.id1
+inner join Highschooler as H2 on H2.id = L.id2
+where (select id1
+        from Friend
+        where Friend.ID1 = L.ID1 and Friend.ID2 = L.ID2) is null
+and
+        (select id2 from Friend where id1 = L.id1
+        intersect
+        select id2 from Friend where id1 = L.id2
+        ) not null)
+inner join Highschooler on Highschooler.id = Fi.id2
+where ID1 = fid1 and ID in (select id2 from Friend where ID1 = fid2)
+
+''', conn2)
+```
+
+```{python}
+pd.read_sql_query('''
+select count(id) - (select count(distinct name) from Highschooler) from Highschooler
+''', conn2)
+```
