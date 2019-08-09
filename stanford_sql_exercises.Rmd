@@ -5,7 +5,7 @@ jupyter:
       extension: .Rmd
       format_name: rmarkdown
       format_version: '1.1'
-      jupytext_version: 1.1.3
+      jupytext_version: 1.2.1
   kernelspec:
     display_name: Python 3
     language: python
@@ -306,7 +306,31 @@ select * from sqlite_master where type='table'
 ```
 
 ```{python}
+# Find the names of all students who are friends with someone named Gabriel. 
 pd.read_sql_query('''
+select name
+from Friend, Highschooler
+where id1  in (select id from Highschooler where name = "Gabriel") and Friend.ID2 = Highschooler. ID
+''', conn2)
+```
+
+```{python}
+# For every student who likes someone 2 or more grades younger than themselves, return that student's name and 
+# grade, and the name and grade of the student they like. 
+
+pd.read_sql_query('''
+select H.name, H.grade, H2.name, H2.grade from Highschooler as H
+inner join Likes on H.ID = Likes.ID1
+inner join Highschooler as H2 on ID2 = H2.ID
+where ID2 in (select ID from Highschooler where grade = H.grade - 2)
+''', conn2)
+```
+
+```{python}
+# For every pair of students who both like each other, return the name and grade of both students. Include each 
+# pair only once, with the two names in alphabetical order. 
+
+pd.read_sql_query(''' 
 select *
 from
 (select H1.name as n1 , H1.grade as g1, H2.name as n2, H2.grade as g2 from Likes
@@ -323,8 +347,64 @@ where n1 < n2
 ```
 
 ```{python}
-pd.read_sql_query('''
+# Find all students who do not appear in the Likes table (as a student who likes or is liked) and return their 
+# names and grades. Sort by grade, then by name within each grade. 
 
+pd.read_sql_query('''
+select name, grade from Highschooler
+where id in
+(select id from Highschooler 
+except 
+select id1 from Likes
+except
+select id2 from Likes)
+''', conn2)
+
+```
+
+```{python}
+# For every situation where student A likes student B, but we have no information about whom B likes 
+# (that is, B does not appear as an ID1 in the Likes table), return A and B's names and grades.
+
+pd.read_sql_query('''
+select h1.name, h1.grade, h2.name, h2.grade from Likes as L
+inner join Highschooler h1 on h1.id = L.id1
+inner join Highschooler h2 on h2.id = L.id2
+where L.id2 not in (select id1 from Likes)
+order by h1.name
+''', conn2)
+```
+
+```{python}
+# Find names and grades of students who only have friends in the same grade. Return the result sorted by grade, 
+# then by name within each grade. 
+
+pd.read_sql_query('''
+select distinct H1.name, H1.grade
+from Friend as F
+inner join Highschooler as H1 on H1.id = F.id1
+inner join Highschooler as H2 on H2.id = F.id2
+where (
+select id1 from Friend
+inner join Highschooler as HH2 on HH2.id = Friend.id2
+where id1 = F.id1 and HH2.grade = H1.grade
+) not null
+and
+(
+select id1 from Friend
+inner join Highschooler as HH2 on HH2.id = Friend.id2
+where id1 = F.id1 and HH2.grade <> H1.grade
+) is null
+order by h1.grade, h1.name
+''', conn2)
+
+```
+
+```{python}
+# For each student A who likes a student B where the two are not friends, find if they have a friend C in common 
+# (who can introduce them!). For all such trios, return the name and grade of A, B, and C.
+
+pd.read_sql_query('''
 select name1, g1, name2, g2, name, grade
 from Friend as Fi,
 (select id1 as fid1, h1.name as name1, h1.grade as g1, id2 as fid2, h2.name as name2, h2.grade as g2
@@ -340,13 +420,119 @@ and
         select id2 from Friend where id1 = L.id2
         ) not null)
 inner join Highschooler on Highschooler.id = Fi.id2
-where ID1 = fid1 and ID in (select id2 from Friend where ID1 = fid2)
+where ID1 = fid1 and ID in (select id2 from Friend where ID1 = fid2)''', conn2)
+```
+
+```{python}
+# Find the difference between the number of students in the school and the number of different first names. 
+pd.read_sql_query(''' 
+select count(id) - count(distinct name) from Highschooler
+''', conn2)
+```
+
+```{python}
+# Find the name and grade of all students who are liked by more than one other student. 
+pd.read_sql_query('''
+select name, grade
+from Likes
+inner join Highschooler as H on H.id = Likes.id2
+group by ID2 having count(id1) >=2
+''', conn2)
+```
+
+## Extra queries from social network
+
+```{python}
+# For every situation where student A likes student B, but student B likes a different student C, 
+# return the names and grades of A, B, and C. 
+
+pd.read_sql_query('''
+select H1.name, H1.grade, H2.name, H2.grade, H3.name, H3.grade
+from Likes as L 
+inner join Likes as L2 on L.id2 = L2.id1
+inner join Highschooler as H1 on H1.id = L.id1
+inner join Highschooler as H2 on H2.id = L.id2
+inner join Highschooler as H3 on H3.id = L2.id2
+where L2.id2 <> L.id1
+''', conn2)
+
+```
+
+```{python}
+# Find those students for whom all of their friends are in 
+# different grades from themselves. Return the students' names and 
+# grades.
+
+pd.read_sql_query('''
+select distinct name, grade
+from Friend
+inner join Highschooler on Highschooler.id = Friend.id1
+where (select id2
+    from friend as F
+    inner join Highschooler as H on H.id = F.id2
+    where F.Id1 = Friend.id1 and Highschooler.grade <> H.grade
+) not null
+and 
+(select id2
+    from friend as F
+    inner join Highschooler as H on H.id = F.id2
+    where F.Id1 = Friend.id1 and Highschooler.grade = H.grade
+) is null
+''', conn2)
+
+```
+
+```{python}
+# What is the average number of friends per student? (Your result 
+# should be just one number.) 
+
+pd.read_sql_query('''
+select avg(friend_count)
+from (
+select *, count(id2) as friend_count
+from Friend
+inner join highschooler on friend.id1 = highschooler.id
+group by friend.id1
+)
+''', conn2)
+```
+
+```{python}
+# Find the number of students who are either friends with Cassandra
+# or are friends of friends of Cassandra. Do not count Cassandra, 
+# even though technically she is a friend of a friend.
+
+pd.read_sql_query('''
+select count(*) from (
+select id2 from
+Friend
+inner join (select id2 as cas_friends from Friend where id1 = 1709) as cas
+on id1 = cas.cas_friends
+where id2 <> 1709
+
+union
+
+select id2 as cas_friends from Friend where id1 = 1709
+)
+
 
 ''', conn2)
 ```
 
 ```{python}
+# Find the name and grade of the student(s) with the greatest 
+# number of friends. 
+
 pd.read_sql_query('''
-select count(id) - (select count(distinct name) from Highschooler) from Highschooler
+select name, grade
+from Friend
+inner join Highschooler as H on H.id = Friend.id1
+group by id1
+having count(id2) = (select max(number)from
+
+(select count(id2) as number
+from Friend
+group by id1))
+
 ''', conn2)
 ```
