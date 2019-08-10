@@ -22,7 +22,7 @@ import pandas as pd
 conn = sqlite3.connect('movies_and_ratings.db')
 ```
 
-## First Exercise
+## SQL Movie-Rating Query Exercises
 
 ```{python}
 # Find the titles of all movies directed by Steven Spielberg. 
@@ -143,7 +143,7 @@ from
 
 ```
 
-## Second Exercise
+## SQL Movie-Rating Query Exercises Extras
 
 ```{python}
 pd.read_sql_query('''
@@ -593,4 +593,57 @@ inner join Movie on Movie.mid= Rating.mid
 where (year < 1970 or year >2000) 
 ) and stars < 4
 ''', conn)
+```
+
+## SQL Social-Network Modification Exercises
+
+```{python}
+# It's time for the seniors to graduate. Remove all 12th graders
+# from Highschooler. 
+pd.read_sql_query('''
+Delete from Highschooler
+where grade = 12''' ,conn2)
+
+```
+
+```{python}
+# If two students A and B are friends, and A likes B but not
+# vice-versa, remove the Likes tuple. 
+
+pd.read_sql_query('''
+delete from Likes
+where id1 in (
+select Friend.id1 from Friend
+inner join Likes on Friend.id1 = Likes.id1
+where Friend.id2 = Likes.id2 and Friend.id1 not in (
+select id2 from Likes where id1 = Friend.id2
+))
+and
+id2 in (
+select Friend.id2 from Friend
+inner join Likes on Friend.id1 = Likes.id1
+where Friend.id2 = Likes.id2 and Friend.id1 not in (
+select id2 from Likes where id1 = Friend.id2
+))
+''', conn2)
+```
+
+```{python}
+# For all cases where A is friends with B, and B is friends with C,
+# add a new friendship for the pair A and C. Do not add duplicate
+# friendships, friendships that already exist, or friendships with 
+# oneself.
+
+pd.read_sql_query('''
+select distinct F1.id1, F2.id2 as F3
+from Friend as F1, Friend as F2
+where F1.id2 = F2.id1
+and F1.id1 <> F2.id2
+and (
+select id1
+from Friend as finner
+where finner.id1 = F1.id1
+and finner.id2 = F3
+) is null
+''', conn2)
 ```
